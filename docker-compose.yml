@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: jobtrackr_db
+    environment:
+      POSTGRES_USER: jobtrackr
+      POSTGRES_PASSWORD: jobtrackr_pw
+      POSTGRES_DB: jobtrackr
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+volumes:
+  pgdata:
