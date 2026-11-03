@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>JobTrackr QA</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    section { border: 1px solid #ccc; border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem; }
+    input, select { display: block; margin: 0.4rem 0; padding: 0.4rem; width: 100%; box-sizing: border-box; }
+    button { padding: 0.5rem 1rem; margin-top: 0.4rem; }
+    .error { color: #b00020; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>JobTrackr QA</h1>
+
+  <section id="login-section">
+    <h2>Login</h2>
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button id="login-btn">Log in</button>
+    <p id="login-error" class="error"></p>
+  </section>
+
+  <section id="app-section" class="hidden">
+    <h2>Add application</h2>
+    <input id="add-company" placeholder="Company">
+    <input id="add-role" placeholder="Role">
+    <select id="add-status">
+      <option>Applied</option>
+      <option>Screening</option>
+      <option>Interview</option>
+      <option>Offer</option>
+      <option>Rejected</option>
+    </select>
+    <input id="add-salary" type="number" placeholder="Salary (optional)">
+    <button id="add-submit">Add</button>
+    <p id="add-error" class="error"></p>
+
+    <h2>Applications</h2>
+    <button id="refresh-btn">Refresh</button>
+    <ul id="app-list"></ul>
+  </section>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let token = null;
+
+    async function login() {
+      $("login-error").textContent = "";
+      const res = await fetch("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: $("email").value, password: $("password").value }),
+      });
+      if (!res.ok) {
+        $("login-error").textContent = `Login failed (HTTP ${res.status})`;
+        return;
+      }
+      const data = await res.json();
+      token = data.access_token;
+      $("login-section").classList.add("hidden");
+      $("app-section").classList.remove("hidden");
+      loadApplications();
+    }
+
+    async function loadApplications() {
+      const list = $("app-list");
+      list.innerHTML = "";
+      const res = await fetch("/applications", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        list.textContent = `Could not load applications (HTTP ${res.status})`;
+        return;
+      }
+      const items = await res.json();
+      for (const app of items) {
+        const li = document.createElement("li");
+        li.dataset.testid = `app-row-${app.id}`;
+        li.textContent = `${app.company} - ${app.role} (${app.status})`;
+        list.appendChild(li);
+      }
+    }
+
+    async function addApplication() {
+      $("add-error").textContent = "";
+      const salary = $("add-salary").value;
+      const body = {
+        company: $("add-company").value,
+        role: $("add-role").value,
+        status: $("add-status").value,
+        salary: salary === "" ? null : Number(salary),
+      };
+      const res = await fetch("/applications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        $("add-error").textContent = `Could not add application (HTTP ${res.status})`;
+        return;
+      }
+      loadApplications();
+    }
+
+    $("login-btn").addEventListener("click", login);
+    $("add-submit").addEventListener("click", addApplication);
+    $("refresh-btn").addEventListener("click", loadApplications);
+  </script>
+</body>
+</html>
